@@ -1,0 +1,89 @@
+---
+title: "Linear Models"
+author: "Adam Whalen"
+date: "11/23/2020"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(rvest)
+library(p8105.datasets)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_color_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+
+set.seed(1)
+```
+
+## Import data
+
+```{r}
+data("nyc_airbnb")
+
+nyc_airbnb = 
+  nyc_airbnb %>% 
+  mutate(stars = review_scores_location / 2) %>% 
+  rename(
+    borough = neighbourhood_group,
+    neighborhood = neighbourhood) %>% 
+  filter(borough != "Staten Island") %>% 
+  select(price, stars, borough, neighborhood, room_type)
+```
+
+## Fit a model
+
+```{r}
+nyc_airbnb %>% 
+  ggplot(aes(x = stars, y = price, color = borough)) +
+  geom_point()
+```
+
+Let's fit the model we care about.
+
+```{r}
+fit = lm(price ~ stars + borough, data = nyc_airbnb)
+```
+
+Let's look at the result.
+
+```{r eval = FALSE}
+fit
+
+summary(fit)
+summary(fit)$coef
+coef(fit)
+fitted.values(fit)
+residuals(fit)
+```
+
+We won't really use those commands. Let's take a better look at the results.
+
+```{r}
+broom::glance(fit)
+
+broom::tidy(fit) %>% 
+  select(-std.error, -statistic) %>% 
+  mutate(
+    term = str_replace(term, "borough", "Borough: ")
+  ) %>% 
+  knitr::kable(digits = 3)
+```
+
+
+
+
+
