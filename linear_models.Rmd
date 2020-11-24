@@ -83,6 +83,33 @@ broom::tidy(fit) %>%
   knitr::kable(digits = 3)
 ```
 
+## Be in control of factors
+
+This will be helpful when we set reference groups for categorical variables.
+
+```{r}
+nyc_airbnb = 
+  nyc_airbnb %>% 
+  mutate(
+    borough = fct_infreq(borough),
+    room_type = fct_infreq(room_type)
+  )
+```
+
+Look at our plot again
+
+```{r}
+nyc_airbnb %>% 
+  ggplot(aes(x = stars, y = price, color = borough)) +
+  geom_point()
+```
+
+```{r}
+fit = lm(price ~ stars + borough, data = nyc_airbnb)
+
+broom::tidy(fit)
+broom::glance(fit)
+```
 
 
 
