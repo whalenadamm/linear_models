@@ -144,3 +144,71 @@ anova(fit_null, fit_alt) %>%
   broom::tidy()
 ```
 
+## Nest data, fit models, ???, profit
+
+This is pretty formal and also complex
+
+```{r}
+fit = lm(price ~ stars*borough + room_type*borough, data = nyc_airbnb)
+
+broom::tidy(fit)
+```
+
+This is more exploratory but easier to understand.
+
+```{r}
+nyc_airbnb %>% 
+  nest(data = -borough) %>% 
+  mutate(
+    models = map(.x = data, ~lm(price ~ stars, data = .x)),
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(-data, -models) %>% 
+  unnest(results) %>% 
+  filter(term == "stars")
+
+nyc_airbnb %>% 
+  nest(data = -borough) %>% 
+  mutate(
+    models = map(.x = data, ~lm(price ~ stars + room_type, data = .x)),
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(-data, -models) %>% 
+  unnest(results) %>% 
+  filter(term != "(Intercept)") %>% 
+  select(borough, term, estimate) %>% 
+  pivot_wider(
+    names_from = borough,
+    values_from = estimate
+  )
+```
+
+Let's nest even more!
+
+```{r}
+nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  nest(data = -neighborhood) %>% 
+  mutate(
+    models = map(.x = data, ~lm(price ~ stars + room_type, data = .x)),
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(-data, -models) %>% 
+  unnest(results) %>% 
+  filter(str_detect(term, "room_type")) %>% 
+  ggplot(aes(x = neighborhood, y = estimate)) +
+  geom_point() +
+  facet_wrap(. ~ term) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust = 1))
+```
+
+
+
+
+
+
+
+
+
+
+
