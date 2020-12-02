@@ -1,7 +1,5 @@
 Bootstrapping
 ================
-Adam Whalen
-11/23/2020
 
 ## Simulate data
 
@@ -105,3 +103,125 @@ boot_sample(sim_df_nonconst) %>%
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
     ## 1 (Intercept)     1.90    0.0982      19.3 2.45e- 51
     ## 2 x               3.14    0.0688      45.6 1.18e-122
+
+## Many samples and analysis
+
+``` r
+boot_straps = 
+  tibble(
+    strap_number = 1:1000,
+    strap_sample = rerun(1000, boot_sample(sim_df_nonconst))
+  )
+```
+
+Can I run my analysis on these?
+
+``` r
+boot_results = 
+  boot_straps %>% 
+  mutate(
+    models = map(.x = strap_sample, ~lm(y ~ x, data = .x)),
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(strap_number, results) %>% 
+  unnest(results)
+```
+
+What do I have now?
+
+``` r
+boot_results
+```
+
+    ## # A tibble: 2,000 x 6
+    ##    strap_number term        estimate std.error statistic   p.value
+    ##           <int> <chr>          <dbl>     <dbl>     <dbl>     <dbl>
+    ##  1            1 (Intercept)     1.89    0.118       16.0 4.78e- 40
+    ##  2            1 x               3.12    0.0843      37.0 5.32e-103
+    ##  3            2 (Intercept)     2.06    0.0976      21.1 3.71e- 57
+    ##  4            2 x               2.97    0.0690      43.1 2.89e-117
+    ##  5            3 (Intercept)     2.04    0.102       20.0 9.03e- 54
+    ##  6            3 x               3.03    0.0699      43.3 1.43e-117
+    ##  7            4 (Intercept)     1.90    0.113       16.8 1.01e- 42
+    ##  8            4 x               3.18    0.0772      41.2 7.18e-113
+    ##  9            5 (Intercept)     1.95    0.112       17.3 1.22e- 44
+    ## 10            5 x               2.97    0.0787      37.8 6.61e-105
+    ## # … with 1,990 more rows
+
+``` r
+boot_results %>% 
+  group_by(term) %>% 
+  summarize(
+    mean_est = mean(estimate),
+    sd_est = sd(estimate)
+  )
+```
+
+    ## `summarise()` ungrouping output (override with `.groups` argument)
+
+    ## # A tibble: 2 x 3
+    ##   term        mean_est sd_est
+    ##   <chr>          <dbl>  <dbl>
+    ## 1 (Intercept)     1.93 0.0748
+    ## 2 x               3.11 0.101
+
+Answers question: what is the actual estimate and variation in
+intercept/slope across repeated samples from my population?
+
+Look at the distributions, man.
+
+``` r
+boot_results %>% 
+  filter(term == "x") %>% 
+  ggplot(aes(x = estimate)) +
+  geom_density()
+```
+
+<img src="bootstrapping_files/figure-gfm/unnamed-chunk-10-1.png" width="90%" />
+
+Construct a bootstrap CI
+
+``` r
+boot_results %>% 
+  group_by(term) %>% 
+  summarize(
+    ci_lower = quantile(estimate, 0.025),
+    ci_upper = quantile(estimate, 0.975)
+  )
+```
+
+    ## `summarise()` ungrouping output (override with `.groups` argument)
+
+    ## # A tibble: 2 x 3
+    ##   term        ci_lower ci_upper
+    ##   <chr>          <dbl>    <dbl>
+    ## 1 (Intercept)     1.79     2.08
+    ## 2 x               2.91     3.31
+
+## Bootstrap using `modelr`
+
+Can we simplify anything?
+
+``` r
+sim_df_nonconst %>% 
+  bootstrap(1000, id = "strap_number") %>% 
+  mutate(
+    models = map(.x = strap, ~lm(y ~ x, data = .x)),
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(strap_number, results) %>% 
+  unnest(results) %>% 
+  group_by(term) %>% 
+  summarize(
+    mean_est = mean(estimate),
+    sd_est = sd(estimate)
+  )
+```
+
+    ## `summarise()` ungrouping output (override with `.groups` argument)
+
+    ## # A tibble: 2 x 3
+    ##   term        mean_est sd_est
+    ##   <chr>          <dbl>  <dbl>
+    ## 1 (Intercept)     1.93 0.0762
+    ## 2 x               3.11 0.104
